@@ -95,19 +95,21 @@ The estimation results and relevant plots are stored in the folder "Results for 
 
 1. ``` <state name>_est_st.Rda ``` -- contains the estimated parameters and compartments for each state called "state name".
 
-2. ```<state name>_est_bs_1120.Rda ``` -- contains the estimated parameters using bootstrap samples for each state called "state name".
+2. Contains plots for the estimated parameters and relevant epi-markers.
 
-3. ```<state name>_est_boot_data_1120.Rda ``` -- contains the estimated compartments using bootstrap samples for each state called "state name".
 
-4. Contains plots for the estimated parameters and relevant epi-markers.
+3. ```<state name>_est_bs.Rda ``` -- contains the estimated parameters using bootstrap samples for each state called "state name" (in the corresponding folder "<state name>_updated_boot_final").
 
-5. Contains plots for the confience intervals for the relevant paramters and relevant epi-markers, generated using the residual bootstrap method.
+  
+4. ```<state name>_est_boot_data.Rda ``` -- contains the estimated compartments using bootstrap samples for each state called "state name" (in the corresponding folder "<state name>_updated_boot_final").
+
+5. Contains plots for the confience intervals for the relevant paramters and relevant epi-markers, generated using the residual bootstrap method (in the corresponding folder "<state name>_updated_boot_final").
 
 
 
 For example, for the US state, ```<state name> == Utah```, relevant estimation plots are stored in the sub-folder named "Utah" (in the folder "Results for USA States").
-The corresponding Rdata files are named  as ```Utah_est_st.Rda```, ```Utah__est_bs_1120.Rda```,  and ```_est_boot_data_1120.Rda ``` respectively.
-The relevant plots for the bootstrap confidence intervals are stored in the folder "Results for USA States" -> "Utah" -> "CI_Utah". 
+The corresponding Rdata file containing the estimation results using the observed data is named  as ```Utah_est_st.Rda```. The corresponding revised bootstrap code is stored in ```Utah_est_bs.Rda```,  and ```Utah_est_boot_data.Rda ```, respectively, in the folder "Utah__updated_boot_final".
+The relevant plots for the bootstrap confidence intervals are stored in the folder "Results for USA States" -> "Utah" -> "Utah__updated_boot_final" -> "CI_Utah". 
 
 
 

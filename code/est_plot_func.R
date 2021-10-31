@@ -2,8 +2,7 @@
 ##Estimate the other parameters for a given value of gamma and rhoA.
 
 library(lemon)
-bw_lowess = bw_lowess
-estimate_parameters = function(gamma.hat, rhoA.hat, var, shift, numBlock, wd.length, TimeBlock){
+estimate_parameters = function(gamma.hat, rhoA.hat, var, shift, numBlock, wd.length, TimeBlock, bw_lowess){
   rhoH.est = list()
   phi.est = list()
   TtoH = abs(var$TtoH)
@@ -45,7 +44,7 @@ estimate_parameters = function(gamma.hat, rhoA.hat, var, shift, numBlock, wd.len
   
   ## Evaluation of phi(t) at every time point
   
-  n.t = shift * (numBlock-1) + wd.length   # number of time points used in the fitting procedure
+  n.t = shift * (numBlock-1) + wd.length   # 211 number of time points used in the fitting procedure
   phi.hat.mult = rep(0,n.t)
   
   
@@ -66,44 +65,45 @@ estimate_parameters = function(gamma.hat, rhoA.hat, var, shift, numBlock, wd.len
   }
   
   rhoH.hat.mult = apply(umat2, 2, sum) / pmax(1, (apply(umat2 !=0, 2, sum)))
-  rhoH.hat.smooth = lowess(rhoH.hat.mult,f=bw_lowess)$y
-  
+  rhoH.hat.smooth = lowess(rhoH.hat.mult,f=bw_lowess)$y #211
+   
   
   ################################
   ## Computation of various rate parameters and fitted value of A(t)
   
-  n.t = length(phi.hat.smooth)
+  n.t = length(phi.hat.smooth) #211
   range.t = 1:(n.t-1)
   gamma.t = gamma.hat[1]
   rhoA.t = rhoA.hat
   
-  theta.hat.t = pmax(phi.hat.smooth[1:(length(TtoH))] * TtoH,0.01) # estimate of theta(t) [confirmation fraction]
+  n_eff = min(length(TtoH),length(phi.hat.smooth) )
+  theta.hat.t = pmax(phi.hat.smooth[1:n_eff] * TtoH[1:n_eff],0.01) # estimate of theta(t) [confirmation fraction]
   
   delC.low = lowess(delC,f=bw_lowess)$y  # lowess smoothing of Delta(C(t))
-  CIR.t = diff(delC.low)/delC.low[-length(delC.low)]    # Crude Infection Rate =  \Delta^2 C(t)/\Delta C(t)
+  CIR.t = diff(delC.low)/delC.low[-length(delC.low)]    # 210 Crude Infection Rate =  \Delta^2 C(t)/\Delta C(t)
   
   RCCF.t = lowess(diff(theta.hat.t)/(theta.hat.t[1:length(diff(theta.hat.t))]+gamma.t),f=1/8)$y  # relative change in confirmation fraction eta(t) = theta(t)+gamma
-  
-  NIR.hat.t = lowess((CIR.t - RCCF.t[1:length(CIR.t)])/(1 + RCCF.t[1:length(CIR.t)]) ,f=1/8)$y  #estimated Net Infection Rate
-  
+  n_eff2 = min(length(CIR.t),length(RCCF.t))  
+
+  NIR.hat.t = lowess((CIR.t[1:n_eff2] - RCCF.t[1:n_eff2])/(1 + RCCF.t[1:n_eff2]) ,f=1/8)$y  #estimated Net Infection Rate
   nu.hat.t = abs(NIR.hat.t + theta.hat.t[1:length( NIR.hat.t)] + gamma.t + rhoA.t) # Infection rate
-  
   sqrt.alpha.kappa.t = sqrt(pmax(0,nu.hat.t)) # estimate of sqrt{alpha} * kappa(t)
   
-  A.hat.t = delC/pmax((theta.hat.t[1:length(delC)] + gamma.t),.01)  # fitted value of A(t)
-  
+  n_eff3 = min(length(delC),length(theta.hat.t))
+  A.hat.t = delC[1:n_eff3]/pmax((theta.hat.t[1:n_eff3] + gamma.t),.01)  # fitted value of A(t)
   delA.hat.t = NIR.hat.t * A.hat.t[1:length(NIR.hat.t)]   # model-based growth in A(t)
   # NOTE: delA.hat.t may be different from Delta(A.hat.t),
   # which will indicate a model mismatch
   
   new.infect.t = nu.hat.t * A.hat.t[1:length(nu.hat.t)]  # newly infected
   cum.new.infect.t = cumsum(new.infect.t)  # cumulative number of newly infected
-  
   mort_lowess_rate = lowess((delD/H[-length(H)]), f=bw_lowess)$y
+ 
+  n_eff4 = min(length(A.hat.t),length(Q), length(delH), length(mort_lowess_rate), length(H))
   rhoH.final = pmax(0,
-                    ((gamma.hat * (A.hat.t + Q[1:length(A.hat.t)]) - 
-                        delH - mort_lowess_rate *H[1:length(mort_lowess_rate)])/H[1:length(mort_lowess_rate)]))
-  
+                    ((gamma.hat * (A.hat.t[1:n_eff4] + Q[1:n_eff4]) - 
+                        delH[1:n_eff4] - mort_lowess_rate[1:n_eff4] *H[1:n_eff4])/H[1:n_eff4]))
+
   est = list(gamma.hat = gamma.hat, rhoA.hat =rhoA.hat,
              rhoH.hat.vec = rhoH.hat.vec, rhoH.hat.mult = rhoH.hat.mult,
              rhoH.hat.smooth = rhoH.hat.smooth,
@@ -125,7 +125,7 @@ estimate_parameters = function(gamma.hat, rhoA.hat, var, shift, numBlock, wd.len
 
 
 ## Creates the ggplots for displaying the fits
-plot_est = function(var,  raw_data , est_st, dates){
+plot_est = function(var,  raw_data , est_st, dates,bw_lowess){
   
   est1 = est_st$est_para$est ##list containing various estimated epi parameters
   mort = est_st$est_para$mortality ##list containing estimated mortality paramteres
@@ -224,14 +224,12 @@ plot_est = function(var,  raw_data , est_st, dates){
   
   validation_H = ggplot(data = df_CRHD)+
     geom_pointline(mapping = aes(y = raw_Obs_H, x = dates1, color = "Observed"), size =.8 ) +
-    #geom_point(mapping = aes(y = raw_Obs_H, x = dates1, color = "Observed"), size =.4 ) +
-    #geom_line(mapping = aes(y = raw_Obs_H, x = dates1, color = "Observed"), size =.4 ) +
     geom_line(mapping = aes(y = Est_H ,x = dates1, color = "Fitted"), size = 1) +
     scale_color_manual(values = c('Fitted' = 'red',
                                   'Observed' = 'black')) +
     labs(color = 'Y series', x = "Time", y = 'Reported Current Hosptitalization') +
     theme_bw() +
-    scale_x_date(breaks =  break.vec,  #date_breaks("1 months"),
+    scale_x_date(breaks =  break.vec,  
                  labels = date_format("%b %d")) +
     theme(axis.text = element_text(size = 20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -242,24 +240,17 @@ plot_est = function(var,  raw_data , est_st, dates){
           legend.text = element_text(size = 24))
   
   #validation_H
-  
   ggsave(file = sprintf("../Results for USA States/%s/%s_validaton_H.pdf", st, st))
   
   
   ###RCCF
-  
-  
-  # break.vec <- c( plot.data$ddates[1],
-  #                seq(from = plot.data$ddates[1] , to = plot.data$ddates[length(plot.data$ddates)], 
-  #                    by="month"), plot.data$ddates[length(plot.data$ddates)])
-  
-  RCCF = ggplot(plot.data,aes(x=ddates,y=RCCF.t))+
+    RCCF = ggplot(plot.data,aes(x=ddates,y=RCCF.t))+
     geom_pointline(size = 1) +
-    # geom_point(size=0.7)+
-    # geom_line(y=lowess(est1$RCCF.t,f = 1/8)$y)+
-     labs(y = 'RCCF(t)' ,x = "Time")+
+     geom_point(size=0.7)+
+     geom_line(y=lowess(est1$RCCF.t,f = 1/8)$y)+
+    labs(y = 'RCCF(t)' ,x = "Time")+
     theme_bw()+
-    scale_x_date(breaks = break.vec,# date_breaks("1 months"),
+    scale_x_date(breaks = break.vec,
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -282,7 +273,6 @@ plot_est = function(var,  raw_data , est_st, dates){
   df_CIR_NIR$dates1 = as.Date(dates[1:length(plot.data$CIR.t)], format = "%m/%d/%Y") 
   
   CIR_NIR = ggplot(df_CIR_NIR, aes(x=dates1, y=CIR.t))+
-    #geom_point(size = .7)+ 
     geom_line(aes(y=CIR.t.sm,x= dates1,color="CIR(t)"),size=1 ) +
     geom_line(aes(y=NIR.t,x= dates1,color="NIR(t)"),size=1) +
     scale_color_manual(values = c(
@@ -290,7 +280,7 @@ plot_est = function(var,  raw_data , est_st, dates){
       'NIR(t)' = 'red')) +
     labs(color = 'Y series', x = "Time", y = 'CIR(t) and NIR(t)')+
     theme_bw()+
-    scale_x_date(breaks = break.vec,# date_breaks("1 months"),
+    scale_x_date(breaks = break.vec,
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -306,16 +296,15 @@ plot_est = function(var,  raw_data , est_st, dates){
   
   ##CFR
   df_CFR = data.frame( obs_CFR = cumsum(100*var$delD[2:(n.t-1)])/ 
-                                          cumsum(var$delC[2:(n.t -1)]),
+                         cumsum(var$delC[2:(n.t -1)]),
                        est_CFR = cumsum(100*var$delD[2:(n.t-1)])/ 
-                                          cumsum(est1$sqrt.alpha.kappa.t[2:(n.t-1)]*
-                                                   est1$A.hat.t[2:(n.t-1)]))
+                         cumsum(est1$sqrt.alpha.kappa.t[2:(n.t-1)]*
+                                  est1$A.hat.t[2:(n.t-1)]))
   
   df_CFR$dates1 = as.Date(dates[2:(n.t-1)], format = "%m/%d/%Y") 
   
   
   CFR_plot = ggplot(df_CFR)+
-    #geom_point(size = .7)+ 
     geom_line(aes(y = obs_CFR , x = dates1, color = "Observed"),size=1) +
     geom_line(aes(y = est_CFR , x = dates1, color = "Estimated"),size=1) +
     scale_color_manual(values = c(
@@ -323,7 +312,7 @@ plot_est = function(var,  raw_data , est_st, dates){
       'Estimated' = 'red')) +
     labs(color = 'Y series', x = "Time", y = 'Case Fatality Rate')+
     theme_bw()+
-    scale_x_date(breaks = break.vec, #date_breaks("1 months"),
+    scale_x_date(breaks = break.vec,
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -333,7 +322,7 @@ plot_est = function(var,  raw_data , est_st, dates){
           legend.background = element_rect(fill = "transparent"), 
           legend.text=element_text(size=24))
   #CFR_plot
-  ggsave(file =sprintf("../Results for USA States/%s/%s_CFR.pdf", st, st))
+  ggsave(file =sprintf("../Results for USA States/%s/%s_CFR.pdf",st, st))
   
   
   ##Plot for R0 analogue
@@ -359,7 +348,7 @@ plot_est = function(var,  raw_data , est_st, dates){
           legend.text = element_text(size = 24))
   
   #R0_plot
-  ggsave(file = sprintf("../Results for USA States/%s/%s_R0_analogue.pdf", st, st))
+  ggsave(file = sprintf("../Results for USA States/%s/%s_R0_analogue.pdf",st, st))
   
   
   ###A_hat
@@ -371,7 +360,7 @@ plot_est = function(var,  raw_data , est_st, dates){
                color = "blue", size=.6)+
     labs(x = "Time", y = expression(hat(A[t])))+
     theme_bw()+
-    scale_x_date(breaks = break.vec, #date_breaks("1 months"),
+    scale_x_date(breaks = break.vec, 
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -382,7 +371,7 @@ plot_est = function(var,  raw_data , est_st, dates){
           legend.text=element_text(size=24))
   
   #Ahat_plot
-  ggsave(file =sprintf("../Results for USA States/%s/%s_Ahat.pdf", st, st))
+  ggsave(file =sprintf("../Results for USA States/%s%s_Ahat.pdf", st, st))
   
   
   ###New Infections
@@ -396,10 +385,7 @@ plot_est = function(var,  raw_data , est_st, dates){
   df_new.infect$dates1 = as.Date(dates[1:length(plot.data$Time)], format = "%m/%d/%Y")
   New_Infect = ggplot(data = df_new.infect)+
     geom_pointline(mapping = aes(x = dates1,y= new.infect.t, color = "Fitted"), size =.8 ) +
-    #geom_point(aes(x = dates1,y= new.infect.t, color = "Fitted"), size = .7)+
     geom_pointline(aes(x=dates1,y= delC, color = "Observed" ), size = .8)+
-    #geom_line(mapping=aes(y = new.infect.sm ,x= dates1, color = "Fitted"),size=.4 ) +
-    #geom_line(mapping=aes(y = delC.sm,x= dates1,color = "Observed"),size=.4) +
     scale_color_manual(values = c('Fitted' = 'red',
                                   'Observed' = 'black')) +
     labs(color = 'Y series', x = "Time", y = 'New Infection')+
@@ -432,7 +418,7 @@ plot_est = function(var,  raw_data , est_st, dates){
       'Estimated' = 'red')) +
     labs(color = 'Y series', x = "Time", y = 'Doubling Rate')+
     theme_bw()+
-    scale_x_date(breaks = break.vec, #date_breaks("1 months"),
+    scale_x_date(breaks = break.vec, 
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -446,10 +432,9 @@ plot_est = function(var,  raw_data , est_st, dates){
   
   TtoH_plot = ggplot(df_CRHD, aes(dates1)) + 
     geom_pointline(aes(y = TtoH , x = dates1) , size=.8 ) +
-    #geom_point(aes(y = TtoH , x = dates1) , size=.4 ) +
     labs( x = "Time", y = 'Testing per Hospitalization')+
     theme_bw()+
-    scale_x_date(breaks = break.vec, #date_breaks("1 months"),
+    scale_x_date(breaks = break.vec, 
                  labels = date_format("%b %d")) +
     theme(axis.text=element_text(size=20), 
           axis.text.x = element_text(size = 20, angle = 90, hjust = 1),
@@ -574,4 +559,4 @@ diagnostics = function(whichBlock, TimeBlock , est,var){
 }
 
 
-print(bw_lowess)
+#print(bw_lowess)

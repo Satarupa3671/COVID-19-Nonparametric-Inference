@@ -1,5 +1,9 @@
-### The function estimation_module -- takes in any observed data, NumBlock and wd.length and returns the estimated parameters, as well as the estimates for the states C,Q,R,D,H. Based on the input argument boot == FALSE (based on the observed sample, not the bootstrapped sample), it saves the ggplot of the profile loss vs gamma.grid and profile loss vs rhoA.grid.
-###The function plot_for_estimation --  runs the function estimation_module for boot == FALSE (observed data only) and saves the estimated parameters etc.
+### The function estimation_module -- takes in any observed data, NumBlock and wd.length and 
+##### returns the estimated parameters, as well as 
+##### the estimates for the states/compartments C,Q,R,D,H. (by calling the function estimated_states)
+##### Based on the input argument boot == FALSE (based on the observed sample, not the bootstrapped sample), it saves the ggplot of the profile loss vs gamma.grid and profile loss vs rhoA.grid.
+
+### The function plot_for_estimation --  runs the function estimation_module for boot == FALSE (observed data only) and saves the estimated parameters etc.
 
 rm(list=ls())
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -15,22 +19,23 @@ library(scales)
 source("./fitting_functions.R")
 source("./est_plot_func.R")
 load("../USA_data_processing/covid_df.Rda")
-bw_lowess = 1/16
+
 ##data_st is the function to read the data for a particular state "st" and return the smoothed trajectories of (C,D,H,Q,R,DelC,DelH,DelR,DelQ,DelD,Test,Kappa) as a list
 data_st = function(st){
   covid.state = subset(covid_final, state == st)
+  bw_lowess = 1/16
   ##which columns contain NA values?
-  colSums(covid.state[,c(3:6,9:ncol(covid.state))]) ##hospitalizedCurrently , hospitali+   ## from which date  is the data available 
+  colSums(covid.state[,c(3:6,9:ncol(covid.state))]) ##hospitalizedCurrently , hospitali+   ## from which date  is the data available
   date_notNA = max(max(covid.state$date[is.na(covid.state$recovered)]),
                    max(covid.state$date[is.na(covid.state$hospitalizedCurrently)]))
-  
-  
+
+
   covid.state = subset(covid.state, date > date_notNA)
   delC = lowess(diff(covid.state$total_cases), f = bw_lowess)$y
   delR = lowess(diff(covid.state$recovered), f = bw_lowess)$y
   delH = lowess(diff(covid.state$hospitalizedCurrently), f = bw_lowess)$y
   delD = lowess(diff(covid.state$total_deaths), f = bw_lowess)$y
-  
+
   Q = lowess((covid.state$total_cases - covid.state$recovered - covid.state$total_deaths - covid.state$hospitalizedCurrently), f = bw_lowess)$y
   H = lowess(covid.state$hospitalizedCurrently, f = bw_lowess)$y
   delTests = lowess((diff(covid.state$positive + covid.state$negative)), f = bw_lowess)$y
@@ -38,31 +43,31 @@ data_st = function(st){
   TtoH = delTests/TtoH_deno
   kappa = (100 + 100*covid.state$average)/100
   pop19 = covid.state$pop19
-  var = list(delC =  delC, 
+  var = list(delC =  delC,
              delR = delR, delH = delH, delD = delD,
              Q = Q, H = H, TtoH = TtoH, pop19= pop19,
-             R = lowess(covid.state$recovered, f = bw_lowess)$y, 
+             R = lowess(covid.state$recovered, f = bw_lowess)$y,
              D = lowess(covid.state$total_deaths, f = bw_lowess)$y,
              C = lowess(covid.state$total_cases, f = bw_lowess)$y,
              Test = lowess((covid.state$positive + covid.state$negative), f= bw_lowess)$y,
              kappa = kappa)
-  
-  raw_data = list(delC = diff(covid.state$total_cases) , 
-                  delR = diff(covid.state$recovered), 
-                  delH = diff(covid.state$hospitalizedCurrently), 
+  raw_data = list(delC = diff(covid.state$total_cases) ,
+                  delR = diff(covid.state$recovered),
+                  delH = diff(covid.state$hospitalizedCurrently),
                   delD = diff(covid.state$total_deaths),
-                  Q = (covid.state$total_cases - covid.state$recovered - 
+                  Q = (covid.state$total_cases - covid.state$recovered -
                          covid.state$total_deaths - covid.state$hospitalizedCurrently),
-                  H = covid.state$hospitalizedCurrently, 
+                  H = covid.state$hospitalizedCurrently,
                   TtoH = (diff(covid.state$positive + covid.state$negative))/covid.state$hospitalizedCurrently[1:length(diff(covid.state$positive + covid.state$negative))],
                   R = covid.state$recovered, D = covid.state$total_deaths,
                   C = covid.state$total_cases,
                   Test = (covid.state$positive + covid.state$negative))
   n = length(var$Q)
-  return(list(st = st,var = var, raw_data = raw_data, n=n, dates = covid.state$date))
+  return(list(st = st,var = var, raw_data = raw_data, n=n, dates = covid.state$date,
+              bw_lowess = bw_lowess))
 }
 
-estimated_states = function(dat.int, true.para,Time){
+estimated_states = function(dat.int, true.para,Time, bw_lowess){
   
   A <- dat.int$At
   S <- c(dat.int$St,rep(0,Time-2))
@@ -85,15 +90,12 @@ estimated_states = function(dat.int, true.para,Time){
   theta.t = dat.int$theta.hat.t
   for (t in 1:(Time-2)){
     DelC.t = (theta.t[t] + gamma)*A[t]
-    #C[t+1] = pmin((C[t]+ DelC.t),Max.pop)
     C[t+1] = abs(C[t]+ DelC.t)
     
     DelQ.t = theta.t[t]*A[t] - (gamma + rhoA)*Q[t]
-    #Q[t+1] = pmin((Q[t] + DelQ.t), Max.pop)
     Q[t+1] = abs(Q[t] + DelQ.t)
     
     DelH.t = gamma*A[t] + gamma*Q[t] - rhoH.t[t]*H[t] - delta.t[t]*H[t]
-    #H[t+1] = pmin((H[t] + DelH.t), C[t])
     H[t+1] = abs(H[t] + DelH.t)
     
     DelRH.t = rhoH.t[t]*H[t] 
@@ -101,35 +103,24 @@ estimated_states = function(dat.int, true.para,Time){
     DelRA.t = rhoA*A[t]
     
     DelR.t = DelRH.t + DelRQ.t +DelRA.t
-    #R[t+1] = pmin((R[t] + DelR.t),C[t])
     R[t+1] = abs(R[t] + DelR.t)
     
     DelR.Reported.t = DelRH.t + DelRQ.t #+DelRA.t
-    #R[t+1] = pmin((R[t] + DelR.t),C[t])
     R.Reported[t+1] = abs(R.Reported[t] + DelR.Reported.t)
     
     DelD.t = delta.t[t]*H[t]
-    #D[t+1] = pmin((D[t] + DelD.t),C[t])
     D[t+1] = abs(D[t] + DelD.t)
     
     DelS.t =  -(sqrt.alpha.kappa.t[t])^2*A[t] * S[t]/(S[t]+R[t]+A[t])
-    #S[t+1] = pmin((S[t] + DelS.t),Max.pop)
     S[t+1] = abs(S[t] + DelS.t)
   }
-  
-  # C = lowess(C, f = bw_lowess)$y
-  # R = lowess(R, f = bw_lowess)$y
-  # Q = lowess(Q, f = bw_lowess)$y
-  # H = lowess(H, f = bw_lowess)$y
-  # D = lowess(D, f = bw_lowess)$y
   return(list(A = A, S = S, R = R, Q = Q, H = H, D = D, C = C,
               R.Reported = R.Reported, Test = Test,
               sqrt.alpha.kappa.t = sqrt.alpha.kappa.t,
               theta.t = theta.t))
 }
 
-
-estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
+estimation_module = function(dat, numBlock, wd.length, bw_lowess, boot = FALSE){
   
   n = dat$n
   shift =  ((n-1) - wd.length)/(numBlock - 1) #10
@@ -137,7 +128,7 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
   for(j in 1:numBlock){
     TimeBlock[[j]] = (1 + shift * (j-1)) : min(shift * (j-1) + wd.length,(n-1))
   }
-  
+
   gamma.grid = seq(0.0001,0.03,0.0002)
   rhoA.grid = seq(0.002,0.2,0.002)
   eval.mat = matrix(0,length(gamma.grid),length(rhoA.grid))
@@ -163,7 +154,8 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
       gamma.grid = gamma.grid, eval.gamma = eval.gamma))
     
     ##ggplot of profile loss as a func of gamma 
-    File <- sprintf("../Results for USA States/%s/%s_plot_gamma.pdf", dat$st, dat$st)              
+    File <- sprintf("../Results for USA States/%s/%s_plot_gamma.eps", dat$st, dat$st)              
+    
     #if (file.exists(File)) stop(File, " already exists")
     dir.create(dirname(File), showWarnings = FALSE)
     
@@ -177,8 +169,7 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
             legend.direction = "horizontal",
             legend.background = element_rect(fill = "transparent"), 
             legend.text=element_text(size=14))
-    ggsave(sprintf("../Results for USA States/%s/%s_plot_gamma.pdf",  dat$st,  dat$st))
-    
+    ggsave(sprintf("../Results for USA States/%s/%s_plot_gamma.eps",  dat$st,  dat$st))
     
     ##ggplot of profile loss as a func of rhoA
     df_rhoA = as.data.frame(cbind(rhoA.grid = rhoA.grid, eval.rhoA = eval.rhoA))
@@ -193,18 +184,18 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
             legend.background = element_rect(fill = "transparent"), 
             legend.text=element_text(size=14))
     
-    ggsave(sprintf("../Results for USA States/%s/%s_plot_rhoA.pdf",  dat$st,  dat$st))
-    
+    ggsave(sprintf("../Results for USA States/%s/%s_plot_rhoA.eps",  dat$st,  dat$st))
   }
   
-  mort_lowess_rate = lowess((dat$var$delD/dat$var$H[-length(dat$var$H)]),f=bw_lowess)$y
+  mort_lowess_rate = lowess((dat$var$delD/dat$var$H[-length(dat$var$H)]),f=bw_lowess)$y #211
   mort_lm = lm(dat$var$delD ~ dat$var$H[-length(dat$var$H)] -1)
   mort_lm_rate = mort_lm$coefficients[1]
   
   est1 = estimate_parameters(gamma.hat = gamma.hat, rhoA.hat = rhoA.hat, 
                              var = dat$var, shift = shift, 
                              numBlock = numBlock, 
-                             wd.length = wd.length, TimeBlock = TimeBlock)
+                             wd.length = wd.length, TimeBlock = TimeBlock,
+                             bw_lowess = bw_lowess)
   
   if(boot == FALSE){  true.para = list(gamma.true = est1$gamma.hat,
                                        rhoA.true = est1$rhoA.hat,
@@ -226,12 +217,14 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
                   kappa = dat$var$kappa)
   dat.int$St = unique(dat$var$pop19) -  dat.int$At[1] -  dat.int$Rt - dat.int$Qt - dat.int$Ht - dat.int$Dt - dat.int$Ct
   
-  est_states = estimated_states(dat.int = dat.int, true.para = true.para, Time = n)
+  est_states = estimated_states(dat.int = dat.int, true.para = true.para, Time = n, bw_lowess = bw_lowess)
   
   return(list(est_para = list(est = est1, 
                               mortality = list(mort_lm_rate = mort_lm_rate, mort_lowess_rate = mort_lowess_rate)),
               est_states = est_states, 
-              tuning = list(numBlock = numBlock, wd.length = wd.length, TimeBlock = TimeBlock)
+              #eval.gamma= eval.gamma, eval.rhoA = eval.rho,
+              tuning = list(numBlock = numBlock, wd.length = wd.length, TimeBlock = TimeBlock,
+                            bw_lowess = bw_lowess)
               
   ))
 }
@@ -240,17 +233,18 @@ estimation_module = function(dat, numBlock, wd.length, boot = TRUE){
 
 plot_for_estimation = function(st, numBlock, wd.length){
   data.st = data_st(st)
-  est_st = estimation_module(dat = data.st, numBlock = numBlock , wd.length = wd.length, boot = FALSE)
-  #load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
+  bw_lowess = data.st$bw_lowess
+  est_st = estimation_module(dat = data.st, numBlock = numBlock , wd.length = wd.length, bw_lowess = bw_lowess, boot = FALSE)
+  load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   
   sink(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   save(est_st, file = sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   sink()
-  plot_est(var = data.st$var, raw_data = data.st$raw_data, est_st = est_st, dates = data.st$dates)
+  plot_est(var = data.st$var, raw_data = data.st$raw_data, est_st = est_st, dates = data.st$dates, bw_lowess = bw_lowess)
 
   # numBlock = est_st$tuning$numBlock
   # TimeBlock = est_st$tuning$TimeBlock
-  # pdf(sprintf("./%s/%s_plot_diagnostics.pdf", st, st))
+  # pdf(sprintf("./%s/%s_plot_diagnostics.eps", st, st))
   # for(j in 1:numBlock){
   #   diagnostics(whichBlock = j, TimeBlock = TimeBlock , est = est1 , 
   #               var = data.st$var)

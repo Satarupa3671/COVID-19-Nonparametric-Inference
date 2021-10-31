@@ -1,7 +1,6 @@
 ##Code for optimizing the profile loss function to estimate gamma and rhoA.
 
 ## Objective function for estimating rhoH given (gamma, rhoA) within each time block (kernel support)
-bw_lowess = 1/32
 objective.rhoH = function(arg_para, var, grA.data=c(0.02,0.08), TimeSet){
   delC = var$delC
   delR = var$delR
@@ -77,4 +76,3 @@ objective.grA = function(var, eval_para,TimeBlock){
   #print(paste("gamma = ",gamma,", rhoA =",rhoA, ", crit = ",crit))
   return(crit)
 }
-print(bw_lowess)

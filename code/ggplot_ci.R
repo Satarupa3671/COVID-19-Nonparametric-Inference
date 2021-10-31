@@ -15,70 +15,71 @@ source("./est_module.R")
 level <- 0.05
 Nsim = 1000
 load("../USA_data_processing/covid_df.Rda")
-
-collect_parameters_boot = function(est.list, Nsim,level){
-  ## collect gamma
-  gamma.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$gamma.hat)
-  ## collect rhoA
-  rhoA.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$rhoA.hat)
-  ## collect At
-  At.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$A.hat.t)
-  ## collect Ct
-  Ct.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$cum.new.infect.t)
-  ## point-wise CI for rhoH.t, phi.t
-  rhoH.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$rhoH.final)
-  
-  ###theta.t
-  theta.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$theta.hat.t)
-  
-  phi.smooth.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$phi.hat.smooth)
-  
-  ## point-wise CI for del.t.lowess
-  del.lowess.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$mortality$mort_lowess_rate)
-  
-  ##CI for del.t.lm
-  del.lm.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$mortality$mort_lm_rate)
-  ##CI for alpha.t
-  ## collect alpha.t
-  alpha.t.bs <- sapply(1:Nsim, function(i){
-    (est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t/data.st$var$kappa[1:length(est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t)])^2
-  })
-  
-  sqrt.alpha.kappa.t.bs <- sapply(1:Nsim, function(i){
-    est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t
-  })
-  
-  est.bs = list(del.lm.bs = del.lm.bs, del.lowess.bs  = del.lowess.bs , 
-                sqrt.alpha.kappa.t.bs = sqrt.alpha.kappa.t.bs,
-                phi.smooth.bs  = phi.smooth.bs , rhoH.bs = rhoH.bs, theta.bs = theta.bs,
-                alpha.t.bs = alpha.t.bs,
-                Ct.bs = Ct.bs ,At.bs= At.bs, gamma.bs = gamma.bs, rhoA.bs = rhoA.bs)
-  save(est.bs,file = sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_est_bs.Rda", st, st, st))
-  return(est.bs)
-}
-
 st_list = c("Arkansas", "Delaware", "Idaho", "Iowa", "Nebraska", "Ohio", "Oklahoma",
-           "Pennsylvania", "South Dakota", "Tennessee", "Texas", "Utah", "Wisconsin")
-for(st in st_list){
-  data.st = data_st(st)
-  load(sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_bootstrap_E.Rda", st, st, st))
-  
-  parameters_boot = collect_parameters_boot(est.list = est.list, Nsim = Nsim, level = level)  
-  C_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$C)
-  R.Reported_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$R.Reported)
-  R_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$R)
-  Q_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$Q)
-  H_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$H)
-  D_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$D)
-  est_boot_data = list(C_boot = C_boot,
-                       R.Reported_boot = R.Reported_boot ,
-                       R_boot = R_boot,
-                       Q_boot = Q_boot,
-                       H_boot = H_boot,
-                       D_boot = D_boot)
-  
-  save(est_boot_data,file = sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_est_boot_data.Rda", st, st, st))
-}
+            "Pennsylvania", "South Dakota", "Tennessee", "Texas", "Utah", "Wisconsin")
+
+####
+# collect_parameters_boot = function(est.list, Nsim,level){
+#   ## collect gamma
+#   gamma.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$gamma.hat)
+#   ## collect rhoA
+#   rhoA.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$rhoA.hat)
+#   ## collect At
+#   At.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$A.hat.t)
+#   ## collect Ct
+#   Ct.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$cum.new.infect.t)
+#   ## point-wise CI for rhoH.t, phi.t
+#   rhoH.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$rhoH.final)
+#   
+#   ###theta.t
+#   theta.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$theta.hat.t)
+#   
+#   phi.smooth.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$est$phi.hat.smooth)
+#   
+#   ## point-wise CI for del.t.lowess
+#   del.lowess.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$mortality$mort_lowess_rate)
+#   
+#   ##CI for del.t.lm
+#   del.lm.bs <- sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_para$mortality$mort_lm_rate)
+#   ##CI for alpha.t
+#   ## collect alpha.t
+#   alpha.t.bs <- sapply(1:Nsim, function(i){
+#     (est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t/data.st$var$kappa[1:length(est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t)])^2
+#   })
+#   
+#   sqrt.alpha.kappa.t.bs <- sapply(1:Nsim, function(i){
+#     est.list[[i]]$boot_est$est_para$est$sqrt.alpha.kappa.t
+#   })
+#   
+#   est.bs = list(del.lm.bs = del.lm.bs, del.lowess.bs  = del.lowess.bs , 
+#                 sqrt.alpha.kappa.t.bs = sqrt.alpha.kappa.t.bs,
+#                 phi.smooth.bs  = phi.smooth.bs , rhoH.bs = rhoH.bs, theta.bs = theta.bs,
+#                 alpha.t.bs = alpha.t.bs,
+#                 Ct.bs = Ct.bs ,At.bs= At.bs, gamma.bs = gamma.bs, rhoA.bs = rhoA.bs)
+#   save(est.bs,file = sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_est_bs.Rda", st, st, st))
+#   return(est.bs)
+# }
+# 
+# for(st in st_list){
+#   data.st = data_st(st)
+#   load(sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_bootstrap_E.Rda", st, st, st))
+#   
+#   parameters_boot = collect_parameters_boot(est.list = est.list, Nsim = Nsim, level = level)  
+#   C_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$C)
+#   R.Reported_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$R.Reported)
+#   R_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$R)
+#   Q_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$Q)
+#   H_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$H)
+#   D_boot = sapply(1:Nsim, function(i) est.list[[i]]$boot_est$est_states$D)
+#   est_boot_data = list(C_boot = C_boot,
+#                        R.Reported_boot = R.Reported_boot ,
+#                        R_boot = R_boot,
+#                        Q_boot = Q_boot,
+#                        H_boot = H_boot,
+#                        D_boot = D_boot)
+#   
+#   save(est_boot_data,file = sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_est_boot_data.Rda", st, st, st))
+# }
 
 for(st in st_list){ 
   load(sprintf("../Results for USA States/%s/%s_updated_boot_final/%s_est_bs.Rda", st, st, st))

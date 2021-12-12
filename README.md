@@ -70,11 +70,11 @@ which in turn uses the code from "fitting_functions.R" and "est_plot_func.R".
 The relevant plots are generated and the estimation outputs are stored in the RData file ```"<state name>_est_st.Rda"```.
 
 * Step 4 - For performing the residual bootstrap, use ```"resi_boot.R"``` (in the folder "code"). This requires the estimation outputs from Step 3.
-Bootstrap estimate outputs are stored in the RData files ```"<state name>_est_bs_1120.Rda"``` and ```"<state name>_est_boot_data_1120.Rda"```.
+Bootstrap estimate outputs are stored in the RData files ```"<state name>_est_bs.Rda"``` and ```"<state name>_est_boot_data.Rda"```.
 
 * Step 5 - For generating the confidence interval and histogram plots, use ```"ggplot_ci.R"``` (in the folder "code"). This requires the output files from Step 3 and Step 4.
 
-
+For example: for the state ```st = "Utah"```, the optimal tuning parameters found using Step 1 and Step 2 are stored in opt_wd_list.csv. For finding the estimators  for the relevant epi-markers, and save the relevant plots we run the wrapper function ```"individual_plots.R"``` in Step 3. The boostrap CIs and histogram plots can be generated using the wrapper function ```"ggplot_ci.R"``` in Step 5 (which uses the boostrapped data and estimates from Step 4, which are already stored in RData files ```"Utah_est_bs.Rda"``` and ```"Utah_est_boot_data.Rda"``` in the folder "Utah_updated_boot_final").
 
 
 # Installing dependencies

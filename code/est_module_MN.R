@@ -19,7 +19,9 @@ source("./fitting_functions.R")
 source("./est_plot_func.R")
 load("../USA_data_processing/covid_df.Rda")
 
-bw_lowess_old = 1/16
+bw_lowess = 1/16
+numBlock = 12
+wd.length = 29
 
 
 ##data_st is the function to read the data for a particular state "st" and return the smoothed trajectories of (C,D,H,Q,R,DelC,DelH,DelR,DelQ,DelD,Test,Kappa) as a list
@@ -66,7 +68,7 @@ data_st = function(st){
                   C = covid.state$total_cases,
                   Test = (covid.state$positive + covid.state$negative))
   n = length(var$Q)
-  return(list(st = st,var = var, raw_data = raw_data, n=n, dates = covid.state$date))
+  return(list(st = st,var = var, raw_data = raw_data, n=n, dates = covid.state$date, bw_lowess = bw_lowess ))
 }
 
 estimated_states = function(dat.int, true.para,Time, bw_lowess){
@@ -153,6 +155,7 @@ estimation_module = function(dat, numBlock, wd.length, bw_lowess, boot = FALSE){
   gamma.hat = gamma.grid[g.index][1]
   rhoA.hat = rhoA.grid[rA.index]
   
+  dir.create(path = "../Results for USA States", showWarnings = FALSE)
   if(boot == FALSE){
     
     df_gamma = as.data.frame(cbind(
@@ -240,7 +243,7 @@ plot_for_estimation = function(st, numBlock, wd.length){
   data.st = data_st(st)
   bw_lowess = data.st$bw_lowess
   est_st = estimation_module(dat = data.st, numBlock = numBlock , wd.length = wd.length, bw_lowess = bw_lowess, boot = FALSE)
-  load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
+  #load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   
   sink(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st, st))
   save(est_st, file = sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st, st))

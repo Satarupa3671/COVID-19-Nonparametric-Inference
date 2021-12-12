@@ -371,7 +371,7 @@ plot_est = function(var,  raw_data , est_st, dates,bw_lowess){
           legend.text=element_text(size=24))
   
   #Ahat_plot
-  ggsave(file =sprintf("../Results for USA States/%s%s_Ahat.pdf", st, st))
+  ggsave(file =sprintf("../Results for USA States/%s/%s_Ahat.pdf", st, st))
   
   
   ###New Infections

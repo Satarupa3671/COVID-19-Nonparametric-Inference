@@ -148,6 +148,7 @@ estimation_module = function(dat, numBlock, wd.length, bw_lowess, boot = FALSE){
   gamma.hat = gamma.grid[g.index][1]
   rhoA.hat = rhoA.grid[rA.index]
   
+  dir.create(path = "../Results for USA States", showWarnings = FALSE)
   if(boot == FALSE){
     
     df_gamma = as.data.frame(cbind(
@@ -235,7 +236,7 @@ plot_for_estimation = function(st, numBlock, wd.length){
   data.st = data_st(st)
   bw_lowess = data.st$bw_lowess
   est_st = estimation_module(dat = data.st, numBlock = numBlock , wd.length = wd.length, bw_lowess = bw_lowess, boot = FALSE)
-  load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
+  #load(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   
   sink(sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
   save(est_st, file = sprintf("../Results for USA States/%s/%s_est_st.Rda", st, st))
